@@ -22,16 +22,17 @@ Create and manage automations that run in OpenHands Cloud sandboxes — triggere
 
 > **⚠️ CRITICAL — Agent behavior rules:**
 >
-> 1. **ALWAYS use preset endpoints** to create automations. They handle all SDK boilerplate, tarball packaging, and upload automatically:
->    - **Prompt preset** (`POST /v1/preset/prompt`) — for simple tasks with a natural language prompt
+> 0. **Does this task need an LLM at all? Check first.** Before picking a preset, ask whether the task actually requires reasoning, judgment, summarization, or open-ended tool use. If it is fully deterministic — fixed data transforms, scheduled HTTP calls, healthcheck pings, file rotation, picking from a known list, posting a templated message — an LLM-driven preset is overkill. Every run will spin up a sandbox and consume LLM tokens, which adds up fast at high frequencies (every 5 min ≈ 288 runs/day). Surface the trade-off to the user and offer the custom-script path (see `references/custom-automation.md`) as the cheaper, more reliable option. Be especially careful for cron schedules tighter than hourly.
+> 1. **For LLM-appropriate work, default to preset endpoints.** They handle all SDK boilerplate, tarball packaging, and upload automatically:
+>    - **Prompt preset** (`POST /v1/preset/prompt`) — for tasks expressed as a natural language prompt that benefit from agent reasoning
 >    - **Plugin preset** (`POST /v1/preset/plugin`) — when plugins with skills, MCP configs, or commands are needed
-> 2. **NEVER write custom SDK scripts or create tarballs.** Do not generate Python SDK code, `setup.sh` files, or tarball uploads unless the user explicitly asks for it.
-> 3. **If neither preset can satisfy the requirement**, do NOT silently fall back to custom automation. Instead, explain the available options to the user:
->    - **Prompt preset** — simple natural language prompt execution
+> 2. **Do not silently create custom SDK scripts.** Do not generate Python SDK code, `setup.sh` files, or tarball uploads without user consent. But *do* proactively recommend the custom path (per rule 0) when the task is deterministic or high-frequency — surface the option and let the user choose.
+> 3. **If neither preset is the right fit**, do NOT silently fall back to custom automation. Instead, explain the available options to the user:
+>    - **Prompt preset** — natural language prompt execution (LLM-driven)
 >    - **Plugin preset** — load plugins with extended capabilities (skills, MCP, hooks, commands)
->    - **Custom SDK script** — full control over code; point them to `references/custom-automation.md`
+>    - **Custom SDK script** — full control over code, no LLM required; point them to `references/custom-automation.md`
 >    - Let the user choose which approach to use.
-> 4. **Only create custom SDK scripts if the user explicitly requests it.** Refer to `references/custom-automation.md` for the full reference.
+> 4. **Only create custom SDK scripts after the user agrees to that path.** Refer to `references/custom-automation.md` for the full reference.
 
 ## Authentication
 
@@ -755,16 +756,21 @@ After a run completes, the sandbox is **kept alive** by default — users can vi
 
 ## Choosing the Right Preset
 
-| Use Case | Recommended Preset |
-|----------|-------------------|
-| Simple tasks with natural language prompt | **Prompt Preset** |
-| Need plugin skills, MCP configs, or commands | **Plugin Preset** |
-| Custom dependencies or non-Python entrypoint | **Custom Automation** (see below) |
+Pick based on **what the task needs**, not just **what is technically possible**. An LLM-driven preset can do almost anything, so "the preset can satisfy this" is not by itself a good reason to pick it — every run costs tokens and sandbox time.
 
-The **prompt preset** covers most use cases. Use the **plugin preset** when you need extended capabilities from plugins (skills, MCP configurations, hooks, commands). The plugin preset fetches plugins at runtime from their sources and loads them into the conversation.
+| Use Case | Recommended |
+|----------|-------------|
+| Reasoning, summarization, triage, code review, or open-ended tool use | **Prompt Preset** |
+| Needs plugin commands / skills / MCP configs / hooks | **Plugin Preset** |
+| **Deterministic task** (fixed data + scheduled action, e.g. healthcheck, templated notification, rotating from a known list) — especially if it runs frequently | **Custom SDK script** (no LLM) — see `references/custom-automation.md` |
+| Custom Python dependencies, non-Python entrypoint, multi-file project structure, direct SDK lifecycle control | **Custom Automation** (see below) |
 
-**When neither preset is sufficient** (e.g., custom Python dependencies, non-Python entrypoint, multi-file project structure, direct SDK lifecycle control), explain the options to the user and let them decide. Do not attempt custom automation without explicit user request. If they choose the custom route, refer to `references/custom-automation.md`.
+The **prompt preset** is the right default for genuinely agent-shaped work — anything that benefits from reasoning over context, calling tools dynamically, or producing a non-templated output. Use the **plugin preset** when you need extended capabilities from plugins (skills, MCP configurations, hooks, commands).
+
+**Watch for deterministic, high-frequency patterns.** Requests like "send a daily standup reminder", "ping a healthcheck URL every minute", "post a random quote every 5 minutes", or "rotate a fact-of-the-day message" do not need an LLM. Surface this to the user explicitly with a rough cost framing (e.g. "this schedule will invoke your LLM ~288 times/day") before defaulting to a preset. As a rule of thumb, any cron tighter than hourly deserves a deliberate "should this really be agent-driven?" check.
+
+**When neither preset is the right fit** (deterministic task, custom Python dependencies, non-Python entrypoint, multi-file project structure, direct SDK lifecycle control), explain the options to the user and let them decide. Do not attempt custom automation without explicit user agreement. If they choose the custom route, refer to `references/custom-automation.md`.
 
 ## Reference Files
 
-- **`references/custom-automation.md`** — Detailed guide for custom automations: tarball uploads, SDK code structure, environment variables, validation rules, and complete examples. Only use when the user explicitly requests a custom automation.
+- **`references/custom-automation.md`** — Detailed guide for custom automations: tarball uploads, SDK code structure, environment variables, validation rules, and complete examples. Consult this whenever you need to evaluate or recommend the custom path (including for deterministic / cost-sensitive tasks per rule 0). Only *implement* a custom automation after the user agrees to that path.
