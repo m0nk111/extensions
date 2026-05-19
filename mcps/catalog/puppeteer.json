@@ -1,8 +1,7 @@
 {
   "id": "puppeteer",
   "name": "Puppeteer",
-  "description": "Headless Chrome via Puppeteer — navigate, screenshot, and scrape pages.",
-  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer",
+  "description": "Headless Chrome via Puppeteer \u2014 navigate, screenshot, and scrape pages.",
   "iconBg": "#40B5A4",
   "keywords": [
     "browser",

@@ -2,7 +2,6 @@
   "id": "gitlab",
   "name": "GitLab",
   "description": "Search projects, browse merge requests, and update issues on GitLab.",
-  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/gitlab",
   "iconBg": "#FC6D26",
   "keywords": [
     "git",

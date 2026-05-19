@@ -2,7 +2,6 @@
   "id": "postgres",
   "name": "Postgres",
   "description": "Read-only SQL queries and schema introspection against any Postgres database.",
-  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/postgres",
   "iconBg": "#336791",
   "availability": "local",
   "keywords": [

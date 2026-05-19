@@ -33,9 +33,7 @@ import filesystem from "./catalog/filesystem.json" with { type: "json" };
 import memory from "./catalog/memory.json" with { type: "json" };
 import sequential_thinking from "./catalog/sequential-thinking.json" with { type: "json" };
 import time from "./catalog/time.json" with { type: "json" };
-import everart from "./catalog/everart.json" with { type: "json" };
 import everything from "./catalog/everything.json" with { type: "json" };
-import aws_kb from "./catalog/aws-kb.json" with { type: "json" };
 import figma from "./catalog/figma.json" with { type: "json" };
 import airtable from "./catalog/airtable.json" with { type: "json" };
 import obsidian from "./catalog/obsidian.json" with { type: "json" };
@@ -45,7 +43,6 @@ import cloudflare_builds from "./catalog/cloudflare-builds.json" with { type: "j
 import cloudflare_browser_rendering from "./catalog/cloudflare-browser-rendering.json" with { type: "json" };
 import kagi from "./catalog/kagi.json" with { type: "json" };
 import clickhouse from "./catalog/clickhouse.json" with { type: "json" };
-import mattermost from "./catalog/mattermost.json" with { type: "json" };
 
 export const MCP_CATALOG = [
   github,
@@ -83,9 +80,7 @@ export const MCP_CATALOG = [
   memory,
   sequential_thinking,
   time,
-  everart,
   everything,
-  aws_kb,
   figma,
   airtable,
   obsidian,
@@ -95,6 +90,5 @@ export const MCP_CATALOG = [
   cloudflare_browser_rendering,
   kagi,
   clickhouse,
-  mattermost,
 ];
 export default MCP_CATALOG;

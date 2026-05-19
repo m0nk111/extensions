@@ -1,8 +1,8 @@
 {
   "id": "kagi",
   "name": "Kagi Search",
-  "description": "Paid, privacy-first search with high signal-to-noise — great for research.",
-  "docsUrl": "https://help.kagi.com/kagi/api/mcp.html",
+  "description": "Paid, privacy-first search with high signal-to-noise \u2014 great for research.",
+  "docsUrl": "https://github.com/kagisearch/kagimcp",
   "iconBg": "#FFB319",
   "iconColor": "var(--oh-surface-deep)",
   "keywords": [

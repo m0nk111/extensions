@@ -2,7 +2,7 @@
   "id": "github",
   "name": "GitHub",
   "description": "Search code, manage issues and pull requests, and inspect repos via the GitHub API.",
-  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
+  "docsUrl": "https://github.com/github/github-mcp-server",
   "iconBg": "var(--oh-surface)",
   "keywords": [
     "git",
@@ -12,13 +12,18 @@
     "code"
   ],
   "popularityRank": 100,
+  "installHint": "Requires Docker because the legacy npm package was deprecated upstream.",
   "template": {
     "kind": "stdio",
     "serverName": "github",
-    "command": "npx",
+    "command": "docker",
     "args": [
-      "-y",
-      "@modelcontextprotocol/server-github"
+      "run",
+      "-i",
+      "--rm",
+      "-e",
+      "GITHUB_PERSONAL_ACCESS_TOKEN",
+      "ghcr.io/github/github-mcp-server"
     ],
     "envFields": [
       {

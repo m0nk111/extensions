@@ -9,7 +9,6 @@ import {
   Folder,
   GitBranch,
   Globe,
-  Image as ImageIcon,
   ListTree,
   MousePointerClick,
   Search,
@@ -31,7 +30,6 @@ import {
   SiHuggingface,
   SiKagi,
   SiLinear,
-  SiMattermost,
   SiMongodb,
   SiNotion,
   SiObsidian,
@@ -91,9 +89,7 @@ export const MCP_LOGOS = {
   memory: lucideIcon(Brain),
   "sequential-thinking": lucideIcon(ListTree),
   time: lucideIcon(Clock),
-  everart: lucideIcon(ImageIcon),
   everything: lucideIcon(Sparkles),
-  "aws-kb": lucideIcon(BookOpen),
   figma: simpleIcon(SiFigma),
   airtable: simpleIcon(SiAirtable),
   obsidian: simpleIcon(SiObsidian),
@@ -103,7 +99,6 @@ export const MCP_LOGOS = {
   "cloudflare-browser-rendering": simpleIcon(SiCloudflare),
   kagi: simpleIcon(SiKagi),
   clickhouse: simpleIcon(SiClickhouse),
-  mattermost: simpleIcon(SiMattermost),
 };
 
 export const MCP_LOGO_IDS = new Set(Object.keys(MCP_LOGOS));

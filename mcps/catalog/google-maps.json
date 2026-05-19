@@ -2,7 +2,6 @@
   "id": "google-maps",
   "name": "Google Maps",
   "description": "Geocoding, directions, places search, and distance matrix lookups.",
-  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/google-maps",
   "iconBg": "#4285F4",
   "keywords": [
     "maps",

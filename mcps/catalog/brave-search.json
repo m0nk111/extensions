@@ -2,7 +2,7 @@
   "id": "brave-search",
   "name": "Brave Search",
   "description": "Privacy-first web and local search using the Brave Search API.",
-  "docsUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search",
+  "docsUrl": "https://github.com/brave/brave-search-mcp-server",
   "iconBg": "#FB542B",
   "keywords": [
     "search",
@@ -14,7 +14,9 @@
     "command": "npx",
     "args": [
       "-y",
-      "@modelcontextprotocol/server-brave-search"
+      "@brave/brave-search-mcp-server",
+      "--transport",
+      "stdio"
     ],
     "envFields": [
       {
