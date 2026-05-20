@@ -65,6 +65,12 @@ inputs:
             and the pr-review plugin skills.
         required: false
         default: 'true'
+    collect-feedback:
+        description: >
+            Ask maintainers to rate the automated review with thumbs up/down
+            reactions by appending a short footer to the main review body.
+        required: false
+        default: 'true'
     extensions-repo:
         description: GitHub repository for extensions (owner/repo)
         required: false
@@ -246,6 +252,8 @@ runs:
               LLM_BASE_URL: ${{ inputs.llm-base-url }}
               REVIEW_STYLE: ${{ inputs.review-style }}
               REQUIRE_EVIDENCE: ${{ inputs.require-evidence }}
+              COLLECT_FEEDBACK: ${{ inputs.collect-feedback }}
+              REVIEW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
               USE_SUB_AGENTS: ${{ inputs.use-sub-agents }}
               LOAD_PUBLIC_SKILLS: ${{ inputs.load-public-skills }}
               LLM_API_KEY: ${{ inputs.llm-api-key }}
