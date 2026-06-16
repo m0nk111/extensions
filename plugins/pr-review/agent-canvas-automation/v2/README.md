@@ -88,21 +88,22 @@ the result-poster. Concretely:
 | PR 379 (old, before v1 was uploaded) | Used the new format because v1 wasn't yet the prompt | https://github.com/m0nklabs/cryptotrader/pull/379 |
 | PR 380, 381 (with v1 tarball) | Old format (single issue-comment blob) | https://github.com/m0nklabs/cryptotrader/issues/4718914883 (the bad blob) |
 | PR 380, 381, 387 (with v2.5/2.6) | New format with inline review threads | https://github.com/m0nklabs/cryptotrader/pull/381#pullrequestreview-4507050239 |
-| PR 400 (clean e2e test, with v2.7) | New format with inline review threads, full pipeline | https://github.com/m0nklabs/cryptotrader/pull/400 |
+| PR 400 (with v2.7) | New format — but **2 reviews with identical content** landed on the PR (agent's MCP-direct post + script's post from the parsed JSON). The v2.7 script's MCP-detection only ran in the "no JSON" path. | https://github.com/m0nklabs/cryptotrader/pull/400 |
+| PR 402 (clean e2e test, with v2.8) | New format, **exactly 1 review**. The v2.8 duplicate-review guard runs in BOTH the "no JSON" and "have JSON" paths. | https://github.com/m0nklabs/cryptotrader/pull/402 |
 
 ## How to apply this locally
 
 ```bash
-# 1. Pack the v2.7 main.py into a gzipped tarball
-cd plugins/pr-review/agent-canvas-automation/v2.7
-tar -czf /tmp/pr-reviewer-v2.7.tar.gz main.py
+# 1. Pack the v2.8 main.py into a gzipped tarball
+cd plugins/pr-review/agent-canvas-automation/v2.8
+tar -czf /tmp/pr-reviewer-v2.8.tar.gz main.py
 
 # 2. Upload via the Automations API (port 18001 locally)
 curl -s -X POST \
   -H "X-Session-API-Key: $OPENHANDS_AUTOMATION_API_KEY" \
   -H "Content-Type: application/gzip" \
-  --data-binary @/tmp/pr-reviewer-v2.7.tar.gz \
-  "http://localhost:18001/api/automation/v1/uploads?name=pr-reviewer-v2.7-reviews-api&description=..."
+  --data-binary @/tmp/pr-reviewer-v2.8.tar.gz \
+  "http://localhost:18001/api/automation/v1/uploads?name=pr-reviewer-v2.8-reviews-api&description=..."
 
 # 3. PATCH the automation to point at the new tarball
 curl -s -X PATCH \
@@ -111,6 +112,20 @@ curl -s -X PATCH \
   -d '{"tarball_path": "oh-internal://uploads/<id-from-step-2>"}' \
   "http://localhost:18001/api/automation/v1/9581078a7fce41578fb104acfd4e718a"
 ```
+
+## Versions
+
+| Version | What changed | When |
+|---|---|---|
+| v2.0 | Initial v2 (prompt + Reviews API) | 2026-06-16 |
+| v2.1 | First re-pack (no code change) | 2026-06-16 |
+| v2.2 | Re-review guard for closed (PR, label_event_id) pairs | 2026-06-16 |
+| v2.3 | Skipped (experimental) | 2026-06-16 |
+| v2.4 | Skipped (experimental) | 2026-06-16 |
+| v2.5 | Path validation, REQUEST_CHANGES→COMMENT for PR author, MCP-direct detection in "no JSON" path | 2026-06-16 |
+| v2.6 | Re-pack (no code change) | 2026-06-16 |
+| v2.7 | Last-marker parser fix (handles agent prose that mentions `###REVIEW_JSON###`) | 2026-06-16 |
+| **v2.8** | **Duplicate-review guard in BOTH the "no JSON" and "have JSON" paths** — the v2.7 only had it in the "no JSON" path, so a run where the agent posted via MCP AND the script also posted from the parsed JSON would produce two reviews with identical content (as seen on PR 400). | 2026-06-16 |
 
 The new prompt template also requires the agent to use the
 `/github-pr-review` trigger (matched against the `github-pr-review` skill
