@@ -90,9 +90,9 @@ from core.indicators.macd import compute_macd
 
 ## Posting the Review
 
-Use the GitHub CLI (`gh`) with a JSON input file. The `GITHUB_TOKEN` is automatically available.
+Use `curl` with `GITHUB_PERSONAL_ACCESS_TOKEN` (the bot account's token). This guarantees the review is attributed to the bot account, not to whatever account the local `gh` CLI happens to be authenticated as. Inside the OpenHands agent sandbox, `GITHUB_PERSONAL_ACCESS_TOKEN` is automatically available as an env var via the runtime's secret-injection layer — you do **not** need to export it manually, just reference it in the curl command.
 
-**Important**: Always use `--input` with a JSON file instead of `-F` flags. This avoids shell-quoting issues with backticks, quotes, and newlines inside suggestion blocks.
+**Important**: Always pass the JSON via `--data @file` rather than as a quoted inline string. Suggestion blocks contain backticks, quotes, and newlines that are awkward to escape in shell.
 
 ### Step 1: Create the JSON file
 
@@ -123,8 +123,15 @@ EOF
 ### Step 2: Post the review
 
 ```bash
-gh api -X POST repos/{owner}/{repo}/pulls/{pr_number}/reviews --input /tmp/review.json
+curl -sS -X POST \
+  -H "Authorization: token ${GITHUB_PERSONAL_ACCESS_TOKEN}" \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  "https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/reviews" \
+  --data @/tmp/review.json
 ```
+
+The response is a JSON object — capture it so you can confirm the `id`, `state`, and `submitted_at` of the review you just posted.
 
 ### Parameters
 
@@ -273,17 +280,15 @@ For PRs that only add/modify tests:
 - Check for test interdependencies.
 - Do not flag test refactoring without functional impact.
 
-## Fallback: curl
+## Fallback: gh (local dev only)
 
-If `gh` is unavailable, use curl with the same JSON file:
+If you are running this skill outside the agent-canvas automation (e.g. on a developer machine where `gh` is already authenticated as the right user), you may use `gh api` with the same JSON file:
 
 ```bash
-curl -X POST \
-  -H "Authorization: token $GITHUB_TOKEN" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/reviews" \
-  -d @/tmp/review.json
+gh api -X POST repos/{owner}/{repo}/pulls/{pr_number}/reviews --input /tmp/review.json
 ```
+
+**Do not** use `gh api` from inside the agent-canvas automation. `gh` is authenticated as whichever account the host machine's `gh auth login` was last run with (usually the human developer), not the bot account. The resulting review will be attributed to the wrong user. Always use `curl` + `GITHUB_PERSONAL_ACCESS_TOKEN` in that context.
 
 ## Summary Checklist
 
@@ -291,5 +296,5 @@ curl -X POST \
 2. Review data written to `/tmp/review.json` with one entry per finding in `comments[]`.
 3. Each `comments[i].body` follows the `## <Priority> <Category>` template.
 4. Each suggestion block has been verified by mentally applying it to the file.
-5. Post **ONE** review with `gh api --input /tmp/review.json`.
+5. Post **ONE** review with `curl` + `GITHUB_PERSONAL_ACCESS_TOKEN` (the bot token) — see "Posting the Review" above.
 6. If no actionable findings: post a short approval with `"event": "APPROVE"` and **no** `comments[]` entries.

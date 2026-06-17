@@ -112,3 +112,47 @@ def test_skill_offers_prose_fallback(skill_text: str):
         "SKILL.md should tell the agent to fall back to a prose comment "
         "when the suggestion cannot be verified."
     )
+
+
+def test_skill_uses_curl_for_posting(skill_text: str):
+    """The skill's primary posting instruction must use `curl` with
+    `GITHUB_PERSONAL_ACCESS_TOKEN` (the bot token), not `gh api` with the
+    host-machine's `gh` CLI auth. Inside the agent-canvas automation, `gh`
+    is authenticated as the human developer, not the bot account, so
+    `gh api` produces a review attributed to the wrong user.
+    """
+    # The "Posting the Review" section should be a curl example, not gh.
+    # Find the section header and check the first command block after it.
+    import re
+    m = re.search(
+        r"##\s+Posting the Review(.*?)(?=^##\s|\Z)",
+        skill_text,
+        re.DOTALL | re.MULTILINE,
+    )
+    assert m, "SKILL.md is missing a 'Posting the Review' section"
+    section = m.group(1)
+    assert "curl" in section, (
+        "The 'Posting the Review' section should use curl as the primary "
+        "posting mechanism, not gh api."
+    )
+    assert "GITHUB_PERSONAL_ACCESS_TOKEN" in section, (
+        "The 'Posting the Review' section should reference "
+        "GITHUB_PERSONAL_ACCESS_TOKEN (the bot token)."
+    )
+
+
+def test_skill_demotes_gh_to_local_dev_fallback(skill_text: str):
+    """`gh api` is acceptable for local dev (where the user has pre-authenticated
+    `gh` as the right account) but must be explicitly demoted to a fallback
+    in the agent-canvas automation context.
+    """
+    assert "Fallback" in skill_text and "gh" in skill_text, (
+        "SKILL.md should keep a gh-based fallback section for local dev."
+    )
+    # The fallback section should explicitly warn against using gh inside
+    # the automation (otherwise the agent will reach for the convenient
+    # `gh api` path and post as the wrong author).
+    assert "agent-canvas" in skill_text.lower() and "do not" in skill_text.lower(), (
+        "SKILL.md should warn the agent not to use gh api from inside the "
+        "agent-canvas automation."
+    )
