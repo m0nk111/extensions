@@ -27,6 +27,43 @@ Post a single **Pull Request Review** with one **inline comment per finding** �
 
 5. **Order by severity:** 🔴 Critical → 🟠 Important → 🟡 Suggestion. Within the same priority, the most user-visible issue goes first.
 
+## Consolidation Check (run immediately before posting)
+
+Before constructing the review JSON, check whether a review from this bot account already exists on the PR at the same commit. Two reviews from the same author at the same commit — even with overlapping but not identical content — fragment the reviewer timeline and force the maintainer to read both. The "Don't repeat comments" rule in the prompt template is advice; this section makes it mechanical.
+
+```bash
+# Fetch all reviews on this PR (paginated; the default is 30 per page).
+curl -sS -H "Authorization: token ${GITHUB_PERSONAL_ACCESS_TOKEN}" \
+  -H "Accept: application/vnd.github+json" \
+  "https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/reviews?per_page=100" \
+  | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+COMMIT = '{commit_sha}'  # the HEAD SHA you are about to post at
+ME = '{bot_login}'        # your bot account, e.g. m0nk111-post
+mine = [r for r in data if (r.get('user') or {}).get('login') == ME and r.get('commit_id') == COMMIT]
+print(f'{len(mine)} existing review(s) from {ME} at commit {COMMIT[:8]}:')
+for r in mine:
+    print(f'  id={r[\"id\"]} state={r[\"state\"]} submitted={r[\"submitted_at\"]}')
+    print(f'    body preview: {(r.get(\"body\") or \"\")[:120]!r}')
+"
+```
+
+Then apply this decision tree:
+
+| You found | Action |
+|---|---|
+| **0 existing reviews** at the same commit | Proceed. Post the new review as planned. |
+| **1 existing review** at the same commit, with body that already covers your planned findings | **Do not post.** Reply to the existing review thread via `POST /repos/{owner}/{repo}/pulls/{n}/reviews` with `body` set to your short summary and `comments[]` set to `[]`. The result lands as a new review entity on the same commit, but with no duplicate inline threads. If your new findings are *strictly additive* (not already covered by the existing review), post them as a *new* `comments[]` array on this follow-up review — do not re-post the existing comments. |
+| **1+ existing review** at the same commit, but you are confident your new review contains strictly new findings and zero overlap | You may post a fresh review. The previous one stays; this is a rare case and is OK because the maintainer can see them in chronological order. |
+| **1+ existing review** at a **different** commit (PR head has advanced since the bot last posted) | Treat the existing review as stale. Note in the body: *"Supersedes review #<id> from <submitted_at>."* Then post your new review. |
+
+**Why a follow-up review (not an edit):** GitHub does not support editing a submitted review's inline threads. The only ways to "amend" are (a) post a new review and hope the maintainer reads the timeline, or (b) delete the previous review and re-post. Option (a) is the gentler default; option (b) is reserved for the case where the previous review is so wrong it should disappear.
+
+**Why check `commit_id`, not just "any review exists":** the same bot can legitimately review the same PR multiple times if the head SHA advances between runs (the maintainer pushed a fix-up commit). Matching on `commit_id` lets you distinguish "reviewing the same code" (collapse) from "reviewing a new revision" (post fresh).
+
+**Why the bot login, not the human:** the GH bot identity check stops two different bot accounts from racing each other on the same PR. If the existing review is from `@m0nk111` (the human developer, who occasionally drops a review manually), you still post — that's not a bot self-collision.
+
 ## Key Rule: One PR Review, One API Call, Many Inline Comments
 
 Post exactly **one** Pull Request Review (`POST /repos/{owner}/{repo}/pulls/{pr_number}/reviews`) whose `comments[]` array contains **one entry per finding**. Each entry becomes a separate inline thread anchored to a `path` + `line` + `side`.
@@ -293,8 +330,9 @@ gh api -X POST repos/{owner}/{repo}/pulls/{pr_number}/reviews --input /tmp/revie
 ## Summary Checklist
 
 1. Pre-review checks passed (PR open, scope ok, severity filtered, ≤ 10 findings, severity-ordered).
-2. Review data written to `/tmp/review.json` with one entry per finding in `comments[]`.
-3. Each `comments[i].body` follows the `## <Priority> <Category>` template.
-4. Each suggestion block has been verified by mentally applying it to the file.
-5. Post **ONE** review with `curl` + `GITHUB_PERSONAL_ACCESS_TOKEN` (the bot token) — see "Posting the Review" above.
-6. If no actionable findings: post a short approval with `"event": "APPROVE"` and **no** `comments[]` entries.
+2. **Consolidation check** done (see "Consolidation Check" above). If a bot review already exists at the same `commit_id`, post a follow-up review with only the strictly-new findings, or skip and let the existing review stand.
+3. Review data written to `/tmp/review.json` with one entry per finding in `comments[]`.
+4. Each `comments[i].body` follows the `## <Priority> <Category>` template.
+5. Each suggestion block has been verified by mentally applying it to the file.
+6. Post **ONE** review with `curl` + `GITHUB_PERSONAL_ACCESS_TOKEN` (the bot token) — see "Posting the Review" above.
+7. If no actionable findings: post a short approval with `"event": "APPROVE"` and **no** `comments[]` entries.

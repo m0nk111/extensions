@@ -156,3 +156,62 @@ def test_skill_demotes_gh_to_local_dev_fallback(skill_text: str):
         "SKILL.md should warn the agent not to use gh api from inside the "
         "agent-canvas automation."
     )
+
+
+def test_skill_has_consolidation_check(skill_text: str):
+    """The skill must include a 'consolidation check' — a step that asks the
+    agent to list existing bot reviews at the same commit before posting a
+    new one. This is what stops the agent from re-posting when the
+    automation or the agent's own previous run already reviewed the same
+    commit.
+    """
+    import re
+    m = re.search(
+        r"##\s+Consolidation Check(.*?)(?=^##\s|\Z)",
+        skill_text,
+        re.DOTALL | re.MULTILINE,
+    )
+    assert m, (
+        "SKILL.md is missing a 'Consolidation Check' section. Without it, "
+        "the agent can post a second review at the same commit when the "
+        "first one (from a previous agent run or a manual bot drop) is "
+        "still on the PR — the maintainer sees two review entities and "
+        "has to reconcile them manually."
+    )
+    section = m.group(1)
+    # The check must use the existing-reviews API, not just be prose advice.
+    assert "/reviews" in section, (
+        "The consolidation check must call the reviews API to list existing "
+        "reviews, not just be prose advice."
+    )
+    # The check must filter by commit_id (so legitimate re-reviews after a
+    # new commit push are still allowed).
+    assert "commit_id" in section, (
+        "The consolidation check must filter by commit_id, otherwise the "
+        "agent will refuse to re-review when the PR head advances."
+    )
+    # The check must filter by bot login (so other humans' reviews don't
+    # block the agent).
+    assert "login" in section or "user" in section, (
+        "The consolidation check must identify the bot by login, not just "
+        "by 'any review' (otherwise a human's manual review would block "
+        "the bot)."
+    )
+
+
+def test_skill_summary_checklist_references_consolidation(skill_text: str):
+    """The Summary Checklist must reference the consolidation check, otherwise
+    it's a section the agent will skip in practice.
+    """
+    import re
+    m = re.search(
+        r"##\s+Summary Checklist(.*?)(?=^##\s|\Z)",
+        skill_text,
+        re.DOTALL | re.MULTILINE,
+    )
+    assert m, "SKILL.md is missing a 'Summary Checklist' section"
+    section = m.group(1).lower()
+    assert "consolidation" in section, (
+        "The Summary Checklist must reference the consolidation check, "
+        "otherwise the agent will treat the new section as optional."
+    )
