@@ -9,8 +9,6 @@ triggers:
 
 Post a single **Pull Request Review** with one **inline comment per finding** — never a single blob comment. The body of each inline comment follows the `github-code-quality[bot]` format so reviewers can scan, discuss, and one-click-apply suggestions directly on the diff line.
 
-Reference example of the target format: https://github.com/m0nklabs/cryptotrader/pull/379 (16 inline review threads, each on its own file/line, each with a `## <Category>` heading, one-line statement, `---` separator, and prose fix guidance).
-
 ## Pre-Review Checks (run before drafting the review)
 
 1. **PR is still open:**
@@ -72,7 +70,7 @@ Rules:
 - **Scope confirmation** explicitly says no other code changes / no new imports / no new methods are needed. This is what differentiates a focused review from a sprawl.
 - **` ```suggestion ``` ` block** is appended at the end when, and only when, the change can be expressed as a contiguous replacement of ≤ 5 lines on the new (right) side. For multi-region, architectural, or ambiguous changes, omit the block — describe the fix in prose instead.
 
-### Worked example (matches the format on PR #379)
+### Worked example (one finding, full template)
 
 ```
 🟠 Important: Unused import

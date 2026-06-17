@@ -29,6 +29,11 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlencode
 
+# REPO is the deployment-specific target. It is set by the `/pr-reviewer:setup`
+# skill's Step 6 ("Apply exactly five constant substitutions near the top of
+# the file"), which substitutes this string with the operator's chosen
+# `owner/repo` before the tarball is uploaded. The value below is the source
+# of truth that the setup skill operates on, not a runtime override.
 REPO = "m0nklabs/cryptotrader"
 TRIGGER_LABEL = "openhands-review"
 REVIEW_TONE = "thorough"
@@ -280,6 +285,32 @@ def _list_existing_reviews(
     except Exception as exc:
         print(f"  Warning: could not list existing reviews: {exc}")
     return []
+
+
+_BOT_LOGIN_CACHE: str | None = None
+
+
+def _get_bot_login(token: str) -> str:
+    """Resolve the GitHub login that owns `token` (the bot user).
+
+    Used by the duplicate-review guard to recognise MCP-direct posts: any
+    review whose `user.login` matches the token owner is "one of ours". This
+    works for both `GITHUB_TOKEN` and `GITHUB_PERSONAL_ACCESS_TOKEN` because
+    both authenticate as the bot user that posts the review.
+    """
+    global _BOT_LOGIN_CACHE
+    if _BOT_LOGIN_CACHE:
+        return _BOT_LOGIN_CACHE
+    try:
+        user, _ = _github_request(token, "GET", "/user")
+        if isinstance(user, dict):
+            login = (user.get("login") or "").strip()
+            if login:
+                _BOT_LOGIN_CACHE = login
+                return login
+    except Exception as exc:
+        print(f"  Warning: could not resolve bot login from token: {exc}")
+    return ""
 
 
 def _resolve_event(token: str, pr: dict, requested: str) -> str:
@@ -783,21 +814,22 @@ def _check_conversation_completion(
         if payload is None:
             print(f"  PR #{pr_number}: agent did not emit REVIEW_JSON block in final response")
             existing = _list_existing_reviews(github_token, REPO, pr_number)
+            bot_login = _get_bot_login(github_token)
             already_posted = any(
-                (r.get("user") or {}).get("login", "").lower() == "m0nk111-post"
+                (r.get("user") or {}).get("login", "").lower() == bot_login.lower()
                 for r in existing
             )
 
             if already_posted:
                 print(
-                    f"  PR #{pr_number}: m0nk111-post review(s) already present "
+                    f"  PR #{pr_number}: {bot_login} review(s) already present "
                     f"(agent used MCP directly) — closing"
                 )
             else:
                 msg = (
                     "⚠️  **OpenHands completed the review for commit "
                     f"`{reviewed_sha[:12]}`** but did not produce a parseable "
-                    "`###REVIEW_JSON###` block and no `m0nk111-post` review was "
+                    f"`###REVIEW_JSON###` block and no `{bot_login}` review was "
                     "found on the PR. Falling back to issue comment.\n\n"
                     f"```\n{(final or '').strip()[:6000]}\n```"
                 )

@@ -12,15 +12,17 @@ finding — never as a single issue comment. The format matches
 contiguous.
 
 This is the v2.8 release. The only change vs v2.7 is a duplicate-review
-guard: the script now also checks for existing m0nk111-post reviews at the
-same commit_id BEFORE posting a parsed payload, in addition to the
-"no JSON" path. v2.7 only did the check in the no-JSON path, so a run
-where the agent posted via the GitHub MCP AND the script also posted
-from the parsed JSON resulted in two reviews with identical content.
+guard: the script now also checks for existing reviews posted by the bot
+user (the GitHub login that owns `GITHUB_TOKEN` / `GITHUB_PERSONAL_ACCESS_TOKEN`,
+resolved at runtime via `/user`) at the same commit_id BEFORE posting a
+parsed payload, in addition to the "no JSON" path. v2.7 only did the check
+in the no-JSON path, so a run where the agent posted via the GitHub MCP
+AND the script also posted from the parsed JSON resulted in two reviews
+with identical content.
 
-The v2.8 fix: if `_list_existing_reviews()` shows a m0nk111-post review
-at the same `commit_id` we are about to post at, skip posting and close
-the state. The script logs which path was taken ("MCP-direct" or
+The v2.8 fix: if `_list_existing_reviews()` shows a review by the bot
+user at the same `commit_id` we are about to post at, skip posting and
+close the state. The script logs which path was taken ("MCP-direct" or
 "script-posted") so the run log is unambiguous.
 """
 
@@ -34,6 +36,11 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlencode
 
+# REPO is the deployment-specific target. It is set by the `/pr-reviewer:setup`
+# skill's Step 6 ("Apply exactly five constant substitutions near the top of
+# the file"), which substitutes this string with the operator's chosen
+# `owner/repo` before the tarball is uploaded. The value below is the source
+# of truth that the setup skill operates on, not a runtime override.
 REPO = "m0nklabs/cryptotrader"
 TRIGGER_LABEL = "openhands-review"
 REVIEW_TONE = "thorough"
@@ -312,6 +319,32 @@ def _existing_bot_review_for_commit(
     if bot_only:
         return sorted(bot_only, key=lambda r: r.get("submitted_at", ""), reverse=True)[0]
     return None
+
+
+_BOT_LOGIN_CACHE: str | None = None
+
+
+def _get_bot_login(token: str) -> str:
+    """Resolve the GitHub login that owns `token` (the bot user).
+
+    Used by the duplicate-review guard to recognise MCP-direct posts: any
+    review whose `user.login` matches the token owner is "one of ours". This
+    works for both `GITHUB_TOKEN` and `GITHUB_PERSONAL_ACCESS_TOKEN` because
+    both authenticate as the bot user that posts the review.
+    """
+    global _BOT_LOGIN_CACHE
+    if _BOT_LOGIN_CACHE:
+        return _BOT_LOGIN_CACHE
+    try:
+        user, _ = _github_request(token, "GET", "/user")
+        if isinstance(user, dict):
+            login = (user.get("login") or "").strip()
+            if login:
+                _BOT_LOGIN_CACHE = login
+                return login
+    except Exception as exc:
+        print(f"  Warning: could not resolve bot login from token: {exc}")
+    return ""
 
 
 def _resolve_event(token: str, pr: dict, requested: str) -> str:
@@ -810,8 +843,9 @@ def _check_conversation_completion(
         # BEFORE deciding what to do — this prevents duplicates whether
         # the agent emitted the JSON contract or used the MCP directly.
         existing_reviews = _list_existing_reviews(github_token, REPO, pr_number)
+        bot_login = _get_bot_login(github_token)
         existing_bot = _existing_bot_review_for_commit(
-            existing_reviews, "m0nk111-post", reviewed_sha
+            existing_reviews, bot_login, reviewed_sha
         )
 
         payload = _parse_review_payload(final)
@@ -821,14 +855,14 @@ def _check_conversation_completion(
             if existing_bot is not None:
                 print(
                     f"  PR #{pr_number}: agent did not emit REVIEW_JSON block but "
-                    f"m0nk111-post review #{existing_bot['id']} already exists at "
+                    f"{bot_login} review #{existing_bot['id']} already exists at "
                     f"commit {reviewed_sha[:12]} (agent used MCP directly) — closing"
                 )
             else:
                 msg = (
                     "⚠️  **OpenHands completed the review for commit "
                     f"`{reviewed_sha[:12]}`** but did not produce a parseable "
-                    "`###REVIEW_JSON###` block and no `m0nk111-post` review was "
+                    f"`###REVIEW_JSON###` block and no `{bot_login}` review was "
                     "found on the PR. Falling back to issue comment.\n\n"
                     f"```\n{(final or '').strip()[:6000]}\n```"
                 )
@@ -845,7 +879,7 @@ def _check_conversation_completion(
             # produce a duplicate Pull Request Review with identical content.
             if existing_bot is not None:
                 print(
-                    f"  PR #{pr_number}: m0nk111-post review #{existing_bot['id']} "
+                    f"  PR #{pr_number}: {bot_login} review #{existing_bot['id']} "
                     f"already exists at commit {reviewed_sha[:12]} (likely agent used "
                     f"the GitHub MCP directly) — skipping script post to avoid duplicate"
                 )

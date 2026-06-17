@@ -1,9 +1,8 @@
 # agent-canvas-automation
 
 This directory is the **source-of-truth copy** of the OpenHands Automations
-tarball that powers the `github-pr-review` automation on the
-`m0nklabs/cryptotrader` repo, run by `agent-canvas` on the `m0nk111-post`
-bot user.
+tarball that powers a `github-pr-review`-style cron automation on a single
+agent-canvas deployment.
 
 ## What this is for
 

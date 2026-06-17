@@ -1,10 +1,10 @@
 # agent-canvas-automation — v2
 
 This directory holds the **standalone OpenHands automation** that the
-agent-canvas `github-pr-review` automation runs on cron inside the
-`m0nklabs/cryptotrader` repo. It is the bit of glue that:
+agent-canvas `github-pr-review` automation runs on cron. It is the bit
+of glue that:
 
-1. **Polls** `m0nklabs/cryptotrader` for open PRs carrying the
+1. **Polls** the configured repo for open PRs carrying the
    `openhands-review` label (configurable via `TRIGGER_LABEL`).
 2. **Forks a fresh OpenHands conversation** per `(PR, label_event_id)` and
    feeds it the prompt template (see `_build_review_prompt` in `main.py`).
@@ -78,18 +78,22 @@ the result-poster. Concretely:
 | Path validation | n/a | Inline comments with `path` not in the PR diff are dropped with a log line (GitHub returns 422 for unknown paths) |
 | Author-equals-reviewer | n/a | `REQUEST_CHANGES` is auto-downgraded to `COMMENT` when the bot user is the PR author (GitHub returns 422 otherwise) |
 | Re-review guard | n/a | Already-closed `(PR, label_event_id)` pairs are skipped on the next cron tick instead of starting a new conversation |
-| MCP-direct detection | n/a | If the agent posts the review via the GitHub MCP instead of the JSON contract, the script queries GitHub for existing `m0nk111-post` reviews and closes the state without double-posting |
+| MCP-direct detection | n/a | If the agent posts the review via the GitHub MCP instead of the JSON contract, the script queries GitHub for existing reviews by the bot user (resolved at runtime via `GET /user` with the same token that posts the review) and closes the state without double-posting |
 | `###REVIEW_JSON###` parser | n/a | Brace-counting parser that handles both fenced ```json` and raw inline JSON, with a "last-marker wins" rule so descriptive prose mentioning the marker doesn't shadow the real JSON contract |
 
 ### Real-world demonstration
 
-| PR | Outcome | Reference |
-|---|---|---|
-| PR 379 (old, before v1 was uploaded) | Used the new format because v1 wasn't yet the prompt | https://github.com/m0nklabs/cryptotrader/pull/379 |
-| PR 380, 381 (with v1 tarball) | Old format (single issue-comment blob) | https://github.com/m0nklabs/cryptotrader/issues/4718914883 (the bad blob) |
-| PR 380, 381, 387 (with v2.5/2.6) | New format with inline review threads | https://github.com/m0nklabs/cryptotrader/pull/381#pullrequestreview-4507050239 |
-| PR 400 (with v2.7) | New format — but **2 reviews with identical content** landed on the PR (agent's MCP-direct post + script's post from the parsed JSON). The v2.7 script's MCP-detection only ran in the "no JSON" path. | https://github.com/m0nklabs/cryptotrader/pull/400 |
-| PR 402 (clean e2e test, with v2.8) | New format, **exactly 1 review**. The v2.8 duplicate-review guard runs in BOTH the "no JSON" and "have JSON" paths. | https://github.com/m0nklabs/cryptotrader/pull/402 |
+The version timeline below is the source of truth for what each release
+changed. For concrete observed behaviour (PR-by-PR), see the deployment's
+own review history — this README deliberately avoids hardcoded links to
+specific PRs/threads so it stays portable across deployments.
+
+| Version stage | Expected behaviour on a fresh e2e test |
+|---|---|
+| v1 | Agent outputs a single Markdown blob; script posts it as one issue comment (no inline threads, no suggestion blocks). |
+| v2.1–v2.6 | Agent emits `###REVIEW_JSON###`; script posts a single Pull Request Review with one inline thread per finding. Path-validation and PR-author coalescing are wired up. |
+| v2.7 | Last-marker parser means agent prose that mentions the marker no longer shadows the JSON contract. MCP-direct post is detected in the "no JSON" path. |
+| v2.8 | Duplicate-review guard runs in **both** the "no JSON" and "have JSON" paths. A run where the agent posts via MCP and the script also posts from the parsed JSON produces exactly one review, not two. |
 
 ## How to apply this locally
 
